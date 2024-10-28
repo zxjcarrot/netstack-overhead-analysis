@@ -300,7 +300,7 @@ if __name__ == "__main__":
     server_thread.start()
 
     # Set packet drop rate
-    set_packet_drop_rate(args.packet_drop)
+    #set_packet_drop_rate(args.packet_drop)
 
     # Print the output directory
     if args.output is not None:
@@ -671,4 +671,4 @@ if __name__ == "__main__":
     server_thread.join()
 
     # Reset packet drop rate
-    set_packet_drop_rate(0)
+    #set_packet_drop_rate(0)

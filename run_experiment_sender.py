@@ -249,7 +249,7 @@ if __name__ == "__main__":
     # Wait till receiver is ready
     while True:
         try:
-            receiver.system.listMethods()
+            print(receiver.system.listMethods())
             break
         except ConnectionRefusedError:
             time.sleep(1)
