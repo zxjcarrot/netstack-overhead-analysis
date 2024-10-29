@@ -15,16 +15,29 @@ def process_throughput_output(lines):
     throughput = 0.
     num_samples = 0
 
+
     # Get last 10 secs throughput (exclude the last second)
-    lines = lines[-16:-6]
+    lines = lines[-12:-2]
     for line in lines:
         elements = line.split()
-        if len(elements) > 2 and elements[-4] == "Gbits/sec":
-            throughput += float(elements[-5])
+        if len(elements) > 2 and elements[-1] == "Gbits/sec":
+            throughput += float(elements[-2])
             num_samples += 1
-        elif len(elements) > 2 and elements[-4] == "Mbits/sec":
-            throughput += float(elements[-5]) / 1000
+        elif len(elements) > 2 and elements[-1] == "Mbits/sec":
+            throughput += float(elements[-2]) / 1000
             num_samples += 1
+
+
+    # Get last 10 secs throughput (exclude the last second)
+    # lines = lines[-16:-6]
+    # for line in lines:
+    #     elements = line.split()
+    #     if len(elements) > 2 and elements[-4] == "Gbits/sec":
+    #         throughput += float(elements[-5])
+    #         num_samples += 1
+    #     elif len(elements) > 2 and elements[-4] == "Mbits/sec":
+    #         throughput += float(elements[-5]) / 1000
+    #         num_samples += 1
 
     # Return the average throughput
     return 0 if num_samples == 0 else throughput / num_samples
@@ -37,6 +50,16 @@ def process_util_output(lines):
     # Get the utilisation for each core
     for line in lines[::-1]:
         elements = line.split()
+        if len(elements) == 8 and elements[1] != 'CPU':
+            cpu = int(elements[1])
+            util = float(elements[7])
+            if cpu not in cpu_util:
+                cpu_util[cpu] = (100 - util)
+                num_samples[cpu] = 1
+            else:
+                cpu_util[cpu] += (100 - util)
+                num_samples[cpu] += 1
+
         if len(elements) == 9 and elements[2] != "CPU":
             cpu = int(elements[2])
             util = float(elements[8])
@@ -70,9 +93,12 @@ def process_cache_miss_output(lines):
 
 def process_util_breakdown_output(lines):
     contributions = {}
+    contributions_highest_func = {}
+    contributions_scaled = {}
     not_found = []
     symbol_map = {}
     total_contrib = 0.
+    accounted_contrib = 0.
     unaccounted_contrib = 0.
 
     # Read the symbols map file
@@ -95,7 +121,12 @@ def process_util_breakdown_output(lines):
                 total_contrib += contrib
                 if func in symbol_map:
                     typ = symbol_map[func]
+                    if typ not in contributions_highest_func:
+                        contributions_highest_func[typ] = (func, contrib)
+                    if contrib > contributions_highest_func[typ][1]:
+                        contributions_highest_func[typ] = (func, contrib)
                     contributions[typ] += contrib
+                    accounted_contrib += contrib
                 else:
                     if contrib > 0.01:
                         not_found.append(func)
@@ -103,7 +134,10 @@ def process_util_breakdown_output(lines):
         else:
             break
 
-    return total_contrib, unaccounted_contrib, contributions, not_found
+    for k in contributions:
+        contrib = contributions[k]
+        contributions_scaled[k] = (contrib / accounted_contrib) * 100
+    return total_contrib, unaccounted_contrib, contributions, not_found, contributions_scaled, contributions_highest_func
 
 
 def process_latency_output(lines):

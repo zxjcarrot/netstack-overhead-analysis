@@ -240,6 +240,8 @@ def run_sar(cpus):
 if __name__ == "__main__":
     # Parse args
     args = parse_args()
+    print("args.cpus", args.cpus)
+
     if args.verbose:
         subprocess.enable_logging()
 
@@ -426,7 +428,7 @@ if __name__ == "__main__":
                 break
         perf.wait()
         output_dir.cleanup()
-        total_contrib, unaccounted_contrib, util_contibutions, not_found = process_util_breakdown_output(lines)
+        total_contrib, unaccounted_contrib, util_contibutions, not_found, util_contibutions_scaled, util_contibutions_highest_func = process_util_breakdown_output(lines)
         if args.output is not None:
             with open(os.path.join(args.output, "util-breakdown_perf.log"), "w") as f:
                 f.writelines(lines)
@@ -480,7 +482,7 @@ if __name__ == "__main__":
             if len(new_lines) == 0:
                 break
         perf.wait()
-        total_contrib, unaccounted_contrib, cache_contibutions, not_found = process_util_breakdown_output(lines)
+        total_contrib, unaccounted_contrib, cache_contibutions, not_found, _, _ = process_util_breakdown_output(lines)
         if args.output is not None:
             with open(os.path.join(args.output, "cache-breakdown_perf.log"), "w") as f:
                 f.writelines(lines)
@@ -625,12 +627,34 @@ if __name__ == "__main__":
         print("[sender utilisation breakdown]")
         print("\t".join(keys))
         print("\t".join(["{:.3f}".format(util_contibutions[k]) for k in keys]))
+        print("[sender utilisation highest func]")
+        keys = sorted(util_contibutions_highest_func.keys())
+        print("\t".join(keys))
+        print("\t".join(["{}".format(util_contibutions_highest_func[k][0]) for k in keys]))
+
+        keys = sorted(util_contibutions_scaled.keys())
+        print("[sender utilisation breakdown (scaled)]")
+        print("\t".join(keys))
+        print("\t".join(["{:.3f}".format(util_contibutions_scaled[k]) for k in keys]))
 
         util_contibutions = receiver_results["util_contibutions"]
+        util_contibutions_highest_func = receiver_results["util_contibutions_highest_func"]
         keys = sorted(util_contibutions.keys())
         print("[receiver utilisation breakdown]")
         print("\t".join(keys))
         print("\t".join(["{:.3f}".format(util_contibutions[k]) for k in keys]))
+        print("[receiver utilisation highest func]")
+        keys = sorted(util_contibutions_highest_func.keys())
+        print("\t".join(keys))
+        print("\t".join(["{}".format(util_contibutions_highest_func[k][0]) for k in keys]))
+        
+        
+        util_contibutions_scaled = receiver_results["util_contibutions_scaled"]
+        keys = sorted(util_contibutions_scaled.keys())
+        print("[receiver utilisation breakdown (scaled)]")
+        print("\t".join(keys))
+        print("\t".join(["{:.3f}".format(util_contibutions_scaled[k]) for k in keys]))
+
 
     # Print cache breakdown if required
     if args.cache_breakdown:

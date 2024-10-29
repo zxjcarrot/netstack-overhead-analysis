@@ -25,7 +25,12 @@ __ksize	mm
 __libc_recv	etc
 __local_bh_enable_ip	sched
 __lock_text_start	lock
+__pv_queued_spin_lock_slowpath  lock
 __memcpy	data_copy
+memcpy_orig data_copy
+rep_movs_alternative    data_copy
+clear_page_erms mm
+skb_do_copy_data_nocache    skb
 __mod_zone_page_state	mm
 __napi_alloc_skb	netdev
 __napi_schedule	netdev
@@ -205,6 +210,7 @@ ktime_get	etc
 ktime_get_with_offset	etc
 llist_add_batch	etc
 load_balance	sched
+__cond_resched  sched
 lock_sock_nested	lock
 lock_timer_base	etc
 mem_cgroup_uncharge	mm
@@ -225,6 +231,12 @@ nf_nat_packet   netdev
 nft_cmp_eval    netdev
 nft_update_chain_stats  netdev
 nf_ct_seq_offset    netdev
+napi_gro_frags  netdev
+gve_rx  netdev
+gve_clean_tx_done   netdev
+gve_napi_poll   netdev
+gve_tx_poll netdev
+gve_tx_alloc_fifo   netdev
 mlx5i_handle_rx_cqe netdev
 mlx5e_skb_from_cqe_linear   netdev
 mlx5e_rx_dim_cq_rearm   netdev
@@ -287,6 +299,7 @@ netif_receive_skb_internal	netdev
 netif_receive_skb_list_internal	netdev
 netif_skb_features	skb
 new_slab	mm
+tcp_recvmsg_locked tcp/ip
 nf_confirm	tcp/ip
 nf_conntrack_in	tcp/ip
 nf_conntrack_tcp_packet	tcp/ip
@@ -337,6 +350,7 @@ sk_free	tcp/ip
 sk_page_frag_refill	skb
 sk_stream_alloc_skb	skb
 sk_wait_data	sched
+skb_attempt_defer_free  skb
 skb_add_rx_frag	skb
 skb_clone	skb
 skb_copy_datagram_iter	data_copy

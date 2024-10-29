@@ -458,8 +458,10 @@ if __name__ == "__main__":
         perf.wait()
         output_dir.cleanup()
         lines = perf.stdout.readlines()
-        total_contrib, unaccounted_contrib, util_contibutions, not_found = process_util_breakdown_output(lines)
+        total_contrib, unaccounted_contrib, util_contibutions, not_found, util_contibutions_scaled,util_contibutions_highest_func = process_util_breakdown_output(lines)
         __results["util_contibutions"] = util_contibutions
+        __results["util_contibutions_scaled"] = util_contibutions_scaled
+        __results["util_contibutions_highest_func"] = util_contibutions_highest_func
         if args.output is not None:
             with open(os.path.join(args.output, "util-breakdown_perf.log"), "w") as f:
                 f.writelines(lines)
@@ -507,7 +509,7 @@ if __name__ == "__main__":
         perf.wait()
         output_dir.cleanup()
         lines = perf.stdout.readlines()
-        total_contrib, unaccounted_contrib, cache_contibutions, not_found = process_util_breakdown_output(lines)
+        total_contrib, unaccounted_contrib, cache_contibutions, not_found, _,_ = process_util_breakdown_output(lines)
         __results["cache_contibutions"] = cache_contibutions
         if args.output is not None:
             with open(os.path.join(args.output, "cache-breakdown_perf.log"), "w") as f:
