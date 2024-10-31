@@ -17,27 +17,27 @@ def process_throughput_output(lines):
 
 
     # Get last 10 secs throughput (exclude the last second)
-    lines = lines[-12:-2]
-    for line in lines:
-        elements = line.split()
-        if len(elements) > 2 and elements[-1] == "Gbits/sec":
-            throughput += float(elements[-2])
-            num_samples += 1
-        elif len(elements) > 2 and elements[-1] == "Mbits/sec":
-            throughput += float(elements[-2]) / 1000
-            num_samples += 1
-
-
-    # Get last 10 secs throughput (exclude the last second)
-    # lines = lines[-16:-6]
+    # lines = lines[-12:-2]
     # for line in lines:
     #     elements = line.split()
-    #     if len(elements) > 2 and elements[-4] == "Gbits/sec":
-    #         throughput += float(elements[-5])
+    #     if len(elements) > 2 and elements[-1] == "Gbits/sec":
+    #         throughput += float(elements[-2])
     #         num_samples += 1
-    #     elif len(elements) > 2 and elements[-4] == "Mbits/sec":
-    #         throughput += float(elements[-5]) / 1000
+    #     elif len(elements) > 2 and elements[-1] == "Mbits/sec":
+    #         throughput += float(elements[-2]) / 1000
     #         num_samples += 1
+
+
+    #Get last 10 secs throughput (exclude the last second)
+    lines = lines[-16:-6]
+    for line in lines:
+        elements = line.split()
+        if len(elements) > 2 and elements[-4] == "Gbits/sec":
+            throughput += float(elements[-5])
+            num_samples += 1
+        elif len(elements) > 2 and elements[-4] == "Mbits/sec":
+            throughput += float(elements[-5]) / 1000
+            num_samples += 1
 
     # Return the average throughput
     return 0 if num_samples == 0 else throughput / num_samples
@@ -110,7 +110,7 @@ def process_util_breakdown_output(lines):
                 symbol_map[symbol] = typ
                 if typ not in contributions:
                     contributions[typ] = 0.
-
+    contributions["app"] = 0.
     # Process the perf output to calculate breakdown
     for line in lines:
         if total_contrib < 95:
@@ -131,12 +131,23 @@ def process_util_breakdown_output(lines):
                     if contrib > 0.01:
                         not_found.append(func)
                     unaccounted_contrib += contrib
+            if len(comps) == 5 and comps[3] == "[.]" and comps[1] in ["netserver", "netperf", "iperf"]:
+                contrib = float(comps[0][:-1])
+                total_contrib += contrib
+                typ = "app"
+                contributions[typ] += contrib
+                func = comps[4].split(".")[0]
+                if typ not in contributions_highest_func:
+                    contributions_highest_func[typ] = (func, contrib)
+                if contrib > contributions_highest_func[typ][1]:
+                    contributions_highest_func[typ] = (func, contrib)
+                accounted_contrib += contrib
         else:
             break
 
     for k in contributions:
         contrib = contributions[k]
-        contributions_scaled[k] = (contrib / accounted_contrib) * 100
+        contributions_scaled[k] = (contrib / (accounted_contrib + 0.0001)) * 100
     return total_contrib, unaccounted_contrib, contributions, not_found, contributions_scaled, contributions_highest_func
 
 

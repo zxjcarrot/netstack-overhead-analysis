@@ -191,6 +191,7 @@ def clear_processes():
     os.system("pkill netperf")
     os.system("pkill perf")
     os.system("pkill sar")
+    os.system("pkill sockperf")
 
 
 def run_iperf(cpu, port, window):
@@ -203,10 +204,14 @@ def run_iperf(cpu, port, window):
 
 
 def run_netperf(cpu, port):
-    args = ["taskset", "-c", str(cpu), "netserver", "-p", str(port), "-D", "f"]
+    # args = ["taskset", "-c", str(cpu), "netserver", "-p", str(port), "-D", "f"]
 
+    # return subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, universal_newlines=True)
+    return run_sockperf(cpu, port)
+
+def run_sockperf(cpu, port):
+    args = ["taskset", "-c", str(cpu), "sockperf", "server", "-p", str(port), "--tcp"]
     return subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, universal_newlines=True)
-
 
 # We run one iperf server process per flow, and one netserver process per CPU
 def run_flows(flow_type, config, num_connections, cpus, window):
@@ -270,7 +275,8 @@ def run_sar(cpus):
 
 
 def dmesg_clear():
-    os.system("dmesg -c > /dev/null 2> /dev/null")
+    #os.system("dmesg -c > /dev/null 2> /dev/null")
+    pass
 
 
 def run_dmesg(level="info"):

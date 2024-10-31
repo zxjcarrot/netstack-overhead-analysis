@@ -45,6 +45,7 @@ def parse_args():
     parser.add_argument("--num-rpcs", type=int, default=0, help="Number of short flows (for mixed flow type).")
     parser.add_argument("--arfs", action="store_true", default=False, help="This experiment is run with aRFS.")
     parser.add_argument("--duration", type=int, default=20, help="Duration of the experiment in seconds.")
+    parser.add_argument("--iperf-length", type=int, default=2048, help="Size of the write to iperf")
     parser.add_argument("--window", type=int, default=None, help="Specify the TCP window size (KB).")
     parser.add_argument("--output", type=str, default=None, help="Write raw output to the directory.")
     parser.add_argument("--throughput", action="store_true", help="Measure throughput.")
@@ -150,13 +151,14 @@ def clear_processes():
     os.system("pkill netperf")
     os.system("pkill perf")
     os.system("pkill sar")
+    os.system("pkill sockperf")
 
 
-def run_iperf(cpu, addr, port, duration, window):
+def run_iperf(cpu, addr, port, duration, window, iperf_length):
     if window is None:
-        args = ["taskset", "-c", str(cpu), "iperf", "-i", "1", "-c", addr, "-t", str(duration), "-p", str(port)]
+        args = ["taskset", "-c", str(cpu), "iperf", "-i", "1", "-c", addr, "-t", str(duration), "-p", str(port), "-l", str(iperf_length)]
     else:
-        args = ["taskset", "-c", str(cpu), "iperf", "-i", "1", "-c", addr, "-t", str(duration), "-p", str(port), "-w", str(window / 2) + "K"]
+        args = ["taskset", "-c", str(cpu), "iperf", "-i", "1", "-c", addr, "-t", str(duration), "-p", str(port), "-w", str(window / 2) + "K", "-l", str(iperf_length)]
 
     return subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, universal_newlines=True)
 
@@ -166,25 +168,31 @@ def run_netperf(cpu, addr, port, duration, rpc_size):
 
     return subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, universal_newlines=True)
 
+    #return run_sockperf(cpu, addr, port, duration, rpc_size)
+
+def run_sockperf(cpu, addr, port, duration, rpc_size):
+    args = ["taskset", "-c", str(cpu), "sockperf", "ping-pong", "-i", addr,  "-t", str(duration), "-p", str(port), "-m", "{}".format(rpc_size), "--tcp"]
+
+    return subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, universal_newlines=True)
 
 # We run one iperf client process per flow, and one netperf process per flow
-def run_flows(flow_type, config, addr, num_connections, num_rpcs, cpus, duration, window, rpc_size):
+def run_flows(flow_type, config, addr, num_connections, num_rpcs, cpus, duration, window, rpc_size, iperf_length):
     procs = []
     if flow_type == "mixed":
-        procs.append(run_iperf(cpus[0], addr, BASE_PORT, duration, window))
+        procs.append(run_iperf(cpus[0], addr, BASE_PORT, duration, window, iperf_length))
         for _ in range(num_rpcs):
             procs.append(run_netperf(cpus[0], addr, ADDITIONAL_BASE_PORT, duration, rpc_size))
     elif flow_type == "long":
         if config == "single":
-            procs.append(run_iperf(cpus[0], addr, BASE_PORT, duration, window))
+            procs.append(run_iperf(cpus[0], addr, BASE_PORT, duration, window, iperf_length))
         elif config == "outcast":
-            procs += [run_iperf(cpus[0], addr, BASE_PORT + n, duration, window) for n in range(num_connections)]
+            procs += [run_iperf(cpus[0], addr, BASE_PORT + n, duration, window, iperf_length) for n in range(num_connections)]
         elif config in ["incast", "one-to-one"]:
-            procs += [run_iperf(cpu, addr, BASE_PORT + n, duration, window) for n, cpu in enumerate(cpus)]
+            procs += [run_iperf(cpu, addr, BASE_PORT + n, duration, window, iperf_length) for n, cpu in enumerate(cpus)]
         else:
             for i, sender_cpu in enumerate(cpus):
                 for j, receiver_cpu in enumerate(cpus):
-                    procs.append(run_iperf(sender_cpu, addr, BASE_PORT + i * MAX_CONNECTIONS + j, duration, window))
+                    procs.append(run_iperf(sender_cpu, addr, BASE_PORT + i * MAX_CONNECTIONS + j, duration, window, iperf_length))
     else:
         if config == "single":
             procs.append(run_netperf(cpus[0], addr, BASE_PORT, duration, rpc_size))
@@ -241,6 +249,7 @@ if __name__ == "__main__":
     # Parse args
     args = parse_args()
     print("args.cpus", args.cpus)
+    print("args.iperf_length", args.iperf_length)
 
     if args.verbose:
         subprocess.enable_logging()
@@ -271,7 +280,7 @@ if __name__ == "__main__":
         print("[throughput] starting experiment...")
 
         # Start iperf and/or netperf instances
-        procs = run_flows(args.flow_type, args.config, args.addr, args.num_connections, args.num_rpcs, args.cpus, args.duration, args.window, args.rpc_size)
+        procs = run_flows(args.flow_type, args.config, args.addr, args.num_connections, args.num_rpcs, args.cpus, args.duration, args.window, args.rpc_size, args.iperf_length)
 
         # Wait till all experiments finish
         for p in procs:
@@ -302,10 +311,11 @@ if __name__ == "__main__":
         print("[utilisation] starting experiment...")
 
         # Start iperf and/or netperf instances
-        procs = run_flows(args.flow_type, args.config, args.addr, args.num_connections, args.num_rpcs, args.cpus, args.duration, args.window, args.rpc_size)
+        procs = run_flows(args.flow_type, args.config, args.addr, args.num_connections, args.num_rpcs, args.cpus, args.duration, args.window, args.rpc_size, args.iperf_length)
 
         # Start the sar instance
-        sar = run_sar(list(set(args.cpus + args.affinity)))
+        #sar = run_sar(list(set(args.cpus + args.affinity)))
+        sar = run_sar(list(set(args.cpus)))
 
         # Wait till all experiments finish
         for p in procs:
@@ -346,7 +356,7 @@ if __name__ == "__main__":
         print("[cache miss] starting experiment...")
 
         # Start iperf and/or netperf instances
-        procs = run_flows(args.flow_type, args.config, args.addr, args.num_connections, args.num_rpcs, args.cpus, args.duration, args.window, args.rpc_size)
+        procs = run_flows(args.flow_type, args.config, args.addr, args.num_connections, args.num_rpcs, args.cpus, args.duration, args.window, args.rpc_size, args.iperf_length)
 
         # Start the perf instance
         perf = run_perf_cache(list(set(args.cpus + args.affinity)))
@@ -390,7 +400,7 @@ if __name__ == "__main__":
         print("[util breakdown] starting experiment...")
 
         # Start iperf and/or netperf instances
-        procs = run_flows(args.flow_type, args.config, args.addr, args.num_connections, args.num_rpcs, args.cpus, args.duration, args.window, args.rpc_size)
+        procs = run_flows(args.flow_type, args.config, args.addr, args.num_connections, args.num_rpcs, args.cpus, args.duration, args.window, args.rpc_size, args.iperf_length)
 
         # Start the perf instance
         output_dir = tempfile.TemporaryDirectory()
@@ -445,7 +455,7 @@ if __name__ == "__main__":
         print("[cache breakdown] starting experiment...")
 
         # Start iperf and/or netperf instances
-        procs = run_flows(args.flow_type, args.config, args.addr, args.num_connections, args.num_rpcs, args.cpus, args.duration, args.window, args.rpc_size)
+        procs = run_flows(args.flow_type, args.config, args.addr, args.num_connections, args.num_rpcs, args.cpus, args.duration, args.window, args.rpc_size, args.iperf_length)
 
         # Start the perf instance
         output_dir = tempfile.TemporaryDirectory()
@@ -499,7 +509,7 @@ if __name__ == "__main__":
         print("[flame] starting experiment...")
 
         # Start iperf and/or netperf instances
-        procs = run_flows(args.flow_type, args.config, args.addr, args.num_connections, args.num_rpcs, args.cpus, args.duration, args.window, args.rpc_size)
+        procs = run_flows(args.flow_type, args.config, args.addr, args.num_connections, args.num_rpcs, args.cpus, args.duration, args.window, args.rpc_size, args.iperf_length)
 
         # Start the perf instance
         output_dir = tempfile.TemporaryDirectory()
@@ -542,7 +552,7 @@ if __name__ == "__main__":
         print("[latency] starting experiment...")
 
         # Start iperf and/or netperf instances
-        procs = run_flows(args.flow_type, args.config, args.addr, args.num_connections, args.num_rpcs, args.cpus, args.duration, args.window, args.rpc_size)
+        procs = run_flows(args.flow_type, args.config, args.addr, args.num_connections, args.num_rpcs, args.cpus, args.duration, args.window, args.rpc_size, args.iperf_length)
 
         # Wait till all experiments finish
         for p in procs:
@@ -571,7 +581,7 @@ if __name__ == "__main__":
         print("[skb hist] starting experiment...")
 
         # Start iperf and/or netperf instances
-        procs = run_flows(args.flow_type, args.config, args.addr, args.num_connections, args.num_rpcs, args.cpus, args.duration, args.window, args.rpc_size)
+        procs = run_flows(args.flow_type, args.config, args.addr, args.num_connections, args.num_rpcs, args.cpus, args.duration, args.window, args.rpc_size, args.iperf_length)
 
         # Wait till all experiments finish
         for p in procs:

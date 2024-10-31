@@ -150,7 +150,7 @@ def manage_rps(iface, enabled):
 
 
 def set_irq_affinity(iface):
-    os.system("set_irq_affinity.sh {} 2> /dev/null > /dev/null".format(iface))
+    os.system("set_irq_affinity.sh {}".format(iface))
 
 
 def ntuple_send_port_to_queue(iface, port, n, loc):
@@ -164,7 +164,7 @@ def ntuple_send_all_traffic_to_queue(iface, n, loc):
 
 def ntuple_clear_rules(iface):
     for i in range(MAX_RULE_LOC + 1):
-        os.system("ethtool -U {} delete {} 2> /dev/null > /dev/null".format(iface, i))
+        os.system("ethtool -U {} delete {}".format(iface, i))
 
 
 # Functions to set IRQ mode
