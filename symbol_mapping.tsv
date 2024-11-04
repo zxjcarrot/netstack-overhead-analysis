@@ -514,3 +514,13 @@ __fsnotify_parent   sched
 _copy_from_user data_copy
 file_has_perm   etc
 add_wait_queue  sched
+mutex_spin_on_owner app
+perf_event_groups_first etc
+mutex_lock  app
+mutex_unlock    app
+__mutex_lock    app
+pipe_read   app
+do_sys_poll sched
+copy_page_to_iter   data_copy
+mlx5e_handle_tx_dim netdev
+page_counter_cancel mm
